@@ -41,7 +41,13 @@ def ping_database():
             result = cursor.fetchone()
             cursor.close()
             return bool(result and result[0] == 9)
-    except mysql.connector.Error:
+    except mysql.connector.Error as error:
+        current_app.logger.error(
+            "MySQL health check failed: %s (errno=%s, sqlstate=%s)",
+            error.msg,
+            error.errno,
+            error.sqlstate,
+        )
         return False
 
 
