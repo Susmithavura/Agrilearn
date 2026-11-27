@@ -67,7 +67,7 @@ export async function apiRequest(path, options = {}) {
     body = JSON.stringify(body);
   }
   if (!["GET", "HEAD", "OPTIONS"].includes(method)) {
-    if (!csrfToken) await refreshCsrfToken();
+    if (path === "/auth/login" || !csrfToken) await refreshCsrfToken();
     headers["X-CSRF-Token"] = csrfToken;
   }
   let response;

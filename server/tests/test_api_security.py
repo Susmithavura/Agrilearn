@@ -133,6 +133,28 @@ class ApiSecurityTests(unittest.TestCase):
     def test_state_changes_require_csrf(self):
         response = self.client.post("/api/auth/login", json={"username": "x", "password": "x"})
         self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.get_json()["error"]["code"], "csrf_failed")
+
+    def test_login_csrf_bootstrap_token_reaches_authentication_check(self):
+        csrf = self.client.get("/api/auth/csrf").get_json()["data"]["csrf_token"]
+        with patch("app.routes.auth.fetch_one", return_value=None):
+            response = self.client.post(
+                "/api/auth/login",
+                json={"username": "missing-account", "password": "not-a-real-password"},
+                headers={"X-CSRF-Token": csrf},
+            )
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.get_json()["error"]["code"], "invalid_credentials")
+
+    def test_login_rejects_a_csrf_token_from_another_session(self):
+        self.client.get("/api/auth/csrf")
+        response = self.client.post(
+            "/api/auth/login",
+            json={"username": "missing-account", "password": "not-a-real-password"},
+            headers={"X-CSRF-Token": "token-from-another-session"},
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.get_json()["error"]["code"], "csrf_failed")
 
     def test_csrf_bootstrap_uses_http_only_same_site_cookie(self):
         response = self.client.get("/api/auth/csrf")

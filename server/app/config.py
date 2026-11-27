@@ -199,13 +199,14 @@ class Config:
                 ""
             ).strip()
 
-            if (
-                not allowed_host
-                or any(char in allowed_host for char in "%_")
-            ):
+            if not allowed_host:
                 raise RuntimeError(
                     "Set DB_APP_ALLOWED_HOST to the exact "
                     "production application client hostname or IP."
+                )
+            if any(char in allowed_host for char in "%_"):
+                raise RuntimeError(
+                    "DB_APP_ALLOWED_HOST wildcards are not allowed."
                 )
 
             if not Config.SESSION_COOKIE_SECURE:
