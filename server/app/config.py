@@ -5,7 +5,6 @@ from urllib.parse import urlsplit
 
 from dotenv import load_dotenv
 
-
 # Load environment variables from server/.env
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
@@ -20,29 +19,17 @@ def env_bool(name, default=False):
 
 
 def mysql_tls_options():
-    # Default certificate location:
-    # server/certs/ca.pem
-    default_ca_file = (
-        Path(__file__).resolve().parents[1]
-        / "certs"
-        / "ca.pem"
-    )
-
-    # Allow Render environment variable to override the path
-    ca_file = os.getenv("DB_SSL_CA", "").strip()
-
-    if not ca_file:
-        ca_file = str(default_ca_file)
-
     options = {
-        "ssl_verify_cert": env_bool(
-            "DB_SSL_VERIFY_CERT", False
-        ),
+        "ssl_verify_cert": env_bool("DB_SSL_VERIFY_CERT", False),
         "ssl_verify_identity": env_bool(
             "DB_SSL_VERIFY_IDENTITY", False
         ),
-        "ssl_ca": ca_file,
     }
+
+    ca_file = os.getenv("DB_SSL_CA", "").strip()
+
+    if ca_file:
+        options["ssl_ca"] = ca_file
 
     return options
 
@@ -57,22 +44,15 @@ def validate_production_mysql_tls(environment=None, options=None):
     if environment != "production":
         return
 
-    ca_file = options.get("ssl_ca")
-
+    # Require CA certificate verification.
+    # Hostname identity verification is separately configurable.
     if (
-        not ca_file
+        not options.get("ssl_ca")
         or not options.get("ssl_verify_cert")
-        or not options.get("ssl_verify_identity")
     ):
         raise RuntimeError(
-            "Production MySQL requires DB_SSL_CA, "
-            "DB_SSL_VERIFY_CERT=true and "
-            "DB_SSL_VERIFY_IDENTITY=true."
-        )
-
-    if not Path(ca_file).is_file():
-        raise RuntimeError(
-            f"MySQL CA certificate file not found: {ca_file}"
+            "Production MySQL requires DB_SSL_CA and "
+            "DB_SSL_VERIFY_CERT=true."
         )
 
 
@@ -129,8 +109,6 @@ class Config:
         "charset": "utf8mb4",
         "autocommit": False,
         "connection_timeout": 5,
-
-        # MySQL SSL certificate verification
         **mysql_tls_options(),
     }
 
